@@ -1,27 +1,43 @@
-
-DELIMITER |
-CREATE PROCEDURE batch()
-    BEGIN
+DELIMITER $$
+CREATE DEFINER=`root`@`localhost` PROCEDURE `batch`()
+BEGIN
+    
         DECLARE tid FLOAT;
         DECLARE batchSize INT;
-        declare total INT;
-        declare looplimit INT;
         declare counter INT;
+        declare idd int;
         
-        SET batchSize = 2;
+        declare done boolean; 
         
-        SET tid = (SELECT MAX(transaction_id) FROM transactions)+1;
-        
-        set total = (select count(*) from transactions where (date(datee) = date(now()) and transaction_id is null));
+        declare allCursor cursor for (select id from transactions where (date(datee) = date(now()) and transaction_id is null));
 		
-		set looplimit = ceil(total/batchSize);
-        set counter = 0;
+        DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = true; 
         
-        while counter < looplimit do
-			update transactions set transaction_id = (tid+counter) where transaction_id is null order by id limit batchSize;
-            set counter = counter + 1;
-		end while;
+        set done = false;
         
-        select distinct(transactions.transaction_id) from transactions where transaction_id >= tid;
-    END
-|
+        SET batchSize = 2;        
+        SET tid = (SELECT MAX(transaction_id) FROM transactions)+1;
+		
+        drop temporary table if exists temp;
+        create temporary table if not exists temp (id int primary key);
+            
+		open allCursor;
+        
+        fetch allCursor into idd;
+	while (NOT done)
+        do
+	    set counter = 0;
+	    while(NOT done and counter<batchSize)
+            do
+		update transactions set transaction_id=tid where id=idd;
+                insert into temp values(idd);
+		fetch allCursor into idd;
+                set counter = counter + 1;
+            end while;
+	    set tid = tid+1;
+        end while;
+		
+        close allCursor;
+        select * from temp;
+    END$$
+DELIMITER ;
