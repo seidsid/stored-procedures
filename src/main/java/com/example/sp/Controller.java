@@ -8,10 +8,10 @@ import java.util.*;
 @RestController
 public class Controller {
     @Autowired
-    UpdateRepo updateRepo;
+    ServiceUpdate serviceUpdate;
 
     @GetMapping("/update")
     public List<Integer> update(){
-        return updateRepo.batch();
+        return serviceUpdate.batch();
     }
 }
